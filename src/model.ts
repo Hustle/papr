@@ -68,6 +68,11 @@ export interface Model<TSchema extends BaseSchema, TDefaults extends Partial<TSc
     options?: DistinctOptions
   ) => Promise<Flatten<WithId<TSchema>[TKey]>[]>;
 
+  exists: (
+    filter: Filter<TSchema>,
+    options?: Omit<FindOptions<TSchema>, 'projection' | 'limit' | 'sort' | 'skip'>
+  ) => Promise<boolean>;
+
   find: <Projection>(
     filter: Filter<TSchema>,
     options?: Omit<FindOptions<TSchema>, 'projection'> & { projection?: Projection }
@@ -517,6 +522,35 @@ export function build<TSchema extends BaseSchema, TDefaults extends Partial<TSch
       } as DistinctOptions) as unknown as Flatten<WithId<TSchema>[TKey]>[];
     }
   );
+
+  /**
+   * @description
+   * Performs an optimized `find` to test for the existence of any document matching the filter criteria.
+   *
+   * @param filter {Filter<TSchema>}
+   * @param [options] {FindOptions<TSchema>}
+   *
+   * @returns {Promise<boolean>}
+   */
+  model.exists = async (filter, options) => {
+    // If there are any entries in the filter, we project out the value from
+    // only one of them.  In this way, if there is an index that spans all the
+    // parts of the filter, this can be a "covered" query.
+    // @see https://www.mongodb.com/docs/manual/core/query-optimization/#covered-query
+    //
+    // Note that we must explicitly remove `_id` from the projection; it is often not
+    // present in compound indexes, and mongo will automatically include it in the
+    // result unless you explicitly exclude it from the projection.
+    //
+    // If you don't pass any filter option, we instead project out the primary
+    // key, `_id` (which will override the earlier exclusion).
+    const key = Object.keys(filter)[0] || '_id';
+    const result = await model.findOne(filter, {
+      ...options,
+      projection: { _id: 0, [key]: 1 },
+    });
+    return !!result;
+  };
 
   /**
    * @description
