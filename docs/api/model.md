@@ -416,14 +416,20 @@ Performs an optimized `find` to test for the existence of any document matching 
 
 **Parameters:**
 
-| Name      | Type                   | Attribute |
-| --------- | ---------------------- | --------- |
-| `filter`  | `Filter<TSchema>`      | required  |
-| `options` | `FindOptions<TSchema>` | optional  |
+| Name      | Type                                      | Attribute |
+| --------- | ----------------------------------------- | --------- | ------ | --------- | -------- |
+| `filter`  | `Filter<TSchema>`                         | required  |
+| `options` | `Omit<FindOptions<TSchema>, ("projection" | "limit"   | "sort" | "skip")>` | optional |
 
 **Returns:**
 
 `Promise<boolean>`
+
+**Example:**
+
+```ts
+const isAlreadyActive = await User.exists({ firstName: 'John', lastName: 'Wick', active: true });
+```
 
 ## `upsert`
 

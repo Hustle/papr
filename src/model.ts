@@ -527,12 +527,19 @@ export function build<TSchema extends BaseSchema, TDefaults extends Partial<TSch
    * @description
    * Performs an optimized `find` to test for the existence of any document matching the filter criteria.
    *
+   *
    * @param filter {Filter<TSchema>}
-   * @param [options] {FindOptions<TSchema>}
+   * @param [options] {Omit<FindOptions<TSchema>, "projection" | "limit" | "sort" | "skip">}
    *
    * @returns {Promise<boolean>}
+   *
+   * @example
+   * const isAlreadyActive = await User.exists({ firstName: 'John', lastName: 'Wick', active: true });
    */
-  model.exists = async (filter, options) => {
+  model.exists = async function exists(
+    filter: Filter<TSchema>,
+    options?: Omit<FindOptions<TSchema>, 'projection' | 'limit' | 'sort' | 'skip'>
+  ): Promise<boolean> {
     // If there are any entries in the filter, we project out the value from
     // only one of them.  In this way, if there is an index that spans all the
     // parts of the filter, this can be a "covered" query.
@@ -546,8 +553,8 @@ export function build<TSchema extends BaseSchema, TDefaults extends Partial<TSch
     // key, `_id` (which will override the earlier exclusion).
     const key = Object.keys(filter)[0] || '_id';
     const result = await model.findOne(filter, {
-      ...options,
       projection: { _id: 0, [key]: 1 },
+      ...options,
     });
     return !!result;
   };
