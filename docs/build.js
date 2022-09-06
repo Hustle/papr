@@ -51,13 +51,18 @@ function transpileTS(tsCode) {
   return result.outputText;
 }
 
-function type(names) {
+function formatType(names) {
   return names.map((name) =>
     name
+      // .replace(/(?<!\\)\|/g, '\|') // escape pipe characters that aren't already escaped
       .replace(/\.</g, '<')
       .replace(/^"(.+)"$/, '$1')
       .replace(/\|/g, ' | ')
   );
+}
+
+function asInlineCodeBlock(str) {
+  return `\`${str}\``;
 }
 
 function getParameters(params) {
@@ -65,19 +70,25 @@ function getParameters(params) {
   const separator = '| --- | --- | --- |';
 
   const rows = params
-    .map(
-      (param) =>
-        `| \`${param.name}\` | \`${type(param.type.names).join(' \\| ')}\` | ${
-          param.optional ? 'optional' : 'required'
-        } |`
-    )
+    .map((param) => {
+      const name = asInlineCodeBlock(param.name);
+      const typeNames = formatType(param.type.names).map(
+        // Escape pipe characters that aren't already escaped;
+        // otherwise they are considered as a table column delimiter
+        // by the prettier table formatter.
+        (name) => name.replace(/(?<!\\)\|/g, '\\|')
+      );
+      const type = asInlineCodeBlock(typeNames.join(' \\| '));
+      const optional = param.optional ? 'optional' : 'required';
+      return `| ${name} | ${type} | ${optional} |`;
+    })
     .join('\n');
 
   return `${header}\n${separator}\n${rows}`;
 }
 
 function getReturns(returns) {
-  const value = `\`${type(returns.type.names).join('')}\``;
+  const value = `\`${formatType(returns.type.names).join('')}\``;
   const description = returns.description || '';
   const isURL = description.match(/^https:/);
 
